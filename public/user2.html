@@ -1,0 +1,29 @@
+<button id="captureBtn">Capture Screenshot</button>
+
+<div id="captureArea">
+  <h1>This is the area to capture</h1>
+  <p>Some more content...</p>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
+
+<script>
+  $(document).ready(function() {
+    $('#captureBtn').click(function() {
+      html2canvas(document.querySelector("#captureArea"), {
+        onrendered: function(canvas) {
+          // Append the screenshot as an image
+          document.body.appendChild(canvas);
+          
+          // Or you can download the screenshot
+          var img = canvas.toDataURL("image/png");
+          var link = document.createElement('a');
+          link.href = img;
+          link.download = 'screenshot.png';
+          link.click();
+        }
+      });
+    });
+  });
+</script>

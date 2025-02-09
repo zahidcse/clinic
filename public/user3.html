@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capture Screenshot of Selected Area</title>
+    <!-- jQuery Library -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Latest html2canvas version -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@0.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        /* Page Content Styles */
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        /* Screenshot Selection Area */
+        #selectionBox {
+            position: absolute;
+            border: 2px dashed #007bff;
+            background-color: rgba(0, 123, 255, 0.2);
+            display: none;
+        }
+
+        /* Button Styles */
+        #captureBtn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        /* Hidden Div for Selected Area Content */
+        #selectedContent {
+            display: none;
+            position: absolute;
+            z-index: -1; /* Make it hidden but accessible to html2canvas */
+        }
+    </style>
+</head>
+<body>
+
+<!-- Page Content -->
+<h1>Welcome to My Homepage</h1>
+<p>This is a sample homepage. Click and drag to select an area to capture the screenshot.</p>
+<div style="height: 1000px;">Scroll down to see more content...</div>
+
+<!-- Screenshot Selection Box -->
+<div id="selectionBox"></div>
+
+<!-- Capture Screenshot Button -->
+<button id="captureBtn">Capture Screenshot</button>
+
+<!-- Hidden Div to Capture the Selected Area -->
+<div id="selectedContent"></div>
+
+<script>
+  $(document).ready(function () {
+    let isSelecting = false;
+    let startX, startY;
+
+    const selectionBox = $('#selectionBox');
+    const captureBtn = $('#captureBtn');
+    const selectedContent = $('#selectedContent');
+
+    // Mouse events to handle the drag and selection area
+    $(document).mousedown(function (e) {
+      // Start the selection when the mouse button is pressed
+      isSelecting = true;
+      startX = e.pageX;
+      startY = e.pageY;
+
+      selectionBox.css({
+        left: startX,
+        top: startY,
+        width: 0,
+        height: 0,
+        display: 'block',
+      });
+    });
+
+    $(document).mousemove(function (e) {
+      if (isSelecting) {
+        const width = e.pageX - startX;
+        const height = e.pageY - startY;
+
+        selectionBox.css({
+          width: Math.abs(width),
+          height: Math.abs(height),
+          left: (width < 0) ? e.pageX : startX,
+          top: (height < 0) ? e.pageY : startY,
+        });
+      }
+    });
+
+    $(document).mouseup(function () {
+      // End the selection when the mouse button is released
+      isSelecting = false;
+    });
+
+    // Capture the screenshot of the selected area
+    captureBtn.click(function () {
+      const boxOffset = selectionBox.offset();
+      const boxWidth = selectionBox.width();
+      const boxHeight = selectionBox.height();
+
+      // Only capture if the selection box has a valid width and height
+      if (boxWidth > 0 && boxHeight > 0) {
+        // Move the content inside the selected area into the hidden div
+        selectedContent.html('');
+        selectedContent.css({
+          left: boxOffset.left,
+          top: boxOffset.top,
+          width: boxWidth,
+          height: boxHeight,
+          display: 'block',
+        });
+
+        // Append the content inside selected area to the hidden div
+        $('body').children().each(function () {
+          let element = $(this);
+          let elementOffset = element.offset();
+          let elementWidth = element.outerWidth();
+          let elementHeight = element.outerHeight();
+
+          if (elementOffset.left >= boxOffset.left && 
+              elementOffset.top >= boxOffset.top &&
+              (elementOffset.left + elementWidth) <= (boxOffset.left + boxWidth) && 
+              (elementOffset.top + elementHeight) <= (boxOffset.top + boxHeight)) {
+            selectedContent.append(element.clone());
+          }
+        });
+
+        // Capture the selected content using html2canvas
+        html2canvas(selectedContent[0]).then(function (canvas) {
+          // Convert the canvas to image and trigger the download
+          const img = canvas.toDataURL("image/png");
+          const link = document.createElement('a');
+          link.href = img;
+          link.download = 'selected_area_screenshot.png';
+          link.click();
+        }).catch(function (error) {
+          console.error("Error capturing screenshot:", error);
+        });
+      } else {
+        alert("Please select a valid area.");
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
