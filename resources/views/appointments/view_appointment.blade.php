@@ -454,6 +454,43 @@
             </div>
         </div>
     </div>
+
+
+
+    <div class="modal fade" id="uploadConsentImageModal" tabindex="-1" data-bs-backdrop="static" role="dialog"
+         aria-labelledby="tooltipmodal" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Update Note</h4>
+                    <button class="btn-close py-0" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form class="" id="update_consent_form" action="" method="POST"
+                          enctype="multipart/form-data">
+                        @csrf
+                        <div class="tab">
+                            <div class="row g-3">
+                                <input type="text" name="title" class="form-control" id="basicInput" placeholder="Type something...">
+                                <input class="form-control" name="image" type="file" id="formFileMultiple" multiple>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <div class="pull-left">
+
+                            </div>
+                            <div class="text-end pull-right">
+                                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                                <button id="update_form" class="btn btn-primary update_note" type="submit"
+                                        name="update_note">Update</button>
+                            </div>
+
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 @push('script')
     <script src="{{ asset('assets/toastr/toastr.min.js') }}?v={{ env('V') }}"></script>
@@ -1025,6 +1062,89 @@
             });
 
         });
+
+        function loadConsentFormModal() {
+
+            $('#uploadConsentImageModal').modal('show');
+        }
+
+        $('#update_consent_form').on('submit', function(e) {
+            e.preventDefault();
+
+            var _token = $("input[name='_token']").val();
+            const formData = new FormData(this);
+
+            $.ajax({
+                url: "{{ url('/update-consent-form') }}",
+                type: 'POST',
+                data: formData,
+                cache: false,
+                processData: false,
+                contentType: false,
+                beforeSend: function() {
+                    $('.update_note').prop('disabled', true).text('Updating...');
+                },
+                complete: function() {
+                    $('.update_note').prop('disabled', false).text('Update');
+                },
+                success: function(data) {
+                    if ($.isEmptyObject(data.error)) {
+                        successMessage(data.message);
+                        $('#uploadConsentImageModal').modal('hide');
+                        $('.consent-all-list').append(data.this_consent);
+                        let consent_form_ids = $("#consent_form_ids").val()+','+data.id;
+                        consent_form_ids = consent_form_ids.replace(/^,/, "");
+                        $("#consent_form_ids").val(consent_form_ids);
+
+                    } else {
+                        errorMessage(data.error);
+                    }
+                },
+                error: function(error) {
+                    console.log(error);
+                    $('#tooltipmodal').modal('hide');
+                    $('.update_note').prop('disabled', false).text('Update');
+                    errorMessage(error);
+                }
+            });
+
+        });
+
+        function updateuserConsentForm() {
+            let consent_form_ids = $('#consent_form_ids').val();
+            let patient_id = $('#patient_id').val();
+            $.ajax({
+                url: "{{ url('update-user-consent-form') }}",
+                type: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                data: {
+                    'consent_form_ids': consent_form_ids,
+                    'patient_id': patient_id,
+                },
+
+                success: function(data) {
+                    if ($.isEmptyObject(data.error)) {
+                        successMessage(data.success);
+                    } else {
+                        errorMessage(data.error);
+                    }
+                    $('#deleteModal').modal('hide');
+                    loadAppointmentNotes();
+                },
+                error: function(error) {
+                    console.log(error);
+                    $('#modal_confirm_delete').prop('disabled', false).text('Yes');
+                    $('#deleteModal').modal('hide');
+                    errorMessage(error);
+                }
+            });
+
+        }
+
+
+
 
         $('#medical_history_type').on('change', function(e) {
             e.preventDefault();

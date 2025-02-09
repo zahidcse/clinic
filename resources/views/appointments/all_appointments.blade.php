@@ -236,7 +236,7 @@
 
         });
 
-        function loadCheckedInModal(id, text) {
+        function loadConsentFormModal() {
             $('#modal_confirm_checkedin').attr('onclick', `checkedIn(${id})`);
             $('#checkedinModal').modal('show');
         }

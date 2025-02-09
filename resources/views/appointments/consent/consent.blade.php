@@ -65,11 +65,7 @@
                 <div class="card card-round p-3">
                     <div class="d-flex justify-content-between m-b-30">
                         <div class="m-t-20">
-                            <a href="#">
-                                <button class="btn btn-pill btn-outline-primary btn-air-primary" type="button"
-                                    title="">Upload</button>
-
-                            </a>
+                            <a class="btn btn-pill btn-outline-primary btn-air-primary" onclick="loadConsentFormModal()">Upload</a>
                         </div>
 
                         <div class="m-t-20">
@@ -80,44 +76,28 @@
                         </div>
 
                     </div>
-
-                    <div class="d-block text-left m-t-20">
-                        <div class="btn btn-outline-primary d-block text-left txt-dark">
-                            Stem Cell Intake Form
-                        </div>
+                    @php $consent_form_ids = []; @endphp
+                    <div class="consent-all-list">
+                        @foreach($consent_history_user as $consent_history)
+                            @php $consent_form_ids[] = isset($consent_history->user_consent_form->form_id)?$consent_history->user_consent_form->form_id:''  @endphp
+                            <div class="d-block text-left m-t-20">
+                                <div class="btn btn-outline-primary d-block text-left txt-dark {{ isset($consent_history->user_consent_form->form_id)?'selected':'' }}">
+                                    {{ $consent_history->title }}
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
 
-                    <div class="d-block text-left m-t-20">
-                        <div class="btn btn-outline-primary d-block text-left txt-dark">
-                            PRP Consent Form
-                        </div>
-                    </div>
+                    @php
+                        $consent_form_ids = implode(",",array_filter($consent_form_ids));
+                    @endphp
 
-                    <div class="d-block text-left m-t-20">
-                        <div class="btn btn-outline-primary d-block text-left txt-dark">
-                            Stem Cell Consent Form
-                        </div>
-                    </div>
 
-                    <div class="d-block text-left m-t-20">
-                        <div class="btn btn-outline-primary d-block text-left txt-dark">
-                            IV Therapy Consent Form
-
-                        </div>
-                    </div>
-
-                    <div class="d-block text-left m-t-20">
-                        <div class="btn btn-outline-primary d-block text-left txt-dark">
-                            Sexual Health Consent Form
-
-                        </div>
-                    </div>
 
                     <div class="d-flex m-t-30 justify-content-end">
-                        <a href="https://r3alliance.googchecker.com/view-appointment/1">
-                            <button class="btn btn-primary" type="button" data-bs-toggle="tooltip"
-                                data-bs-original-title="btn btn-primary btn-lg">Add</button>
-                        </a>
+                        <input type="hidden" id="consent_form_ids" value="{{ $consent_form_ids }}">
+                        <input type="hidden" id="patient_id" value="{{ $patient_info->patient_id }}">
+                        <a class="btn btn-primary" onclick="updateuserConsentForm()">Add</a>
                     </div>
                 </div>
 

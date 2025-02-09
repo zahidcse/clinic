@@ -31,6 +31,8 @@ Route::get('/view-appointment/{id}', [App\Http\Controllers\Appointment\Appointme
 Route::post('/save-appointment-note', [App\Http\Controllers\Appointment\AppointmentController::class, 'save_appointment_note']);
 Route::post('/delete-appointment-note', [App\Http\Controllers\Appointment\AppointmentController::class, 'delete_appointment_note']);
 Route::post('/update-appointment-note', [App\Http\Controllers\Appointment\AppointmentController::class, 'update_appointment_note']);
+Route::post('/update-consent-form', [App\Http\Controllers\Appointment\AppointmentController::class, 'update_consent_form']);
+Route::post('/update-user-consent-form', [App\Http\Controllers\Appointment\AppointmentController::class, 'update_user_consent_form']);
 Route::get('/load-appointment-notes', [App\Http\Controllers\Appointment\AppointmentController::class, 'load_appointment_notes']);
 /* --- appointment route end --- */
 
@@ -95,4 +97,3 @@ Route::post('client/tos/signature/{clientId}', [App\Http\Controllers\Client\Clie
 Route::get('documents', [App\Http\Controllers\Client\DocumentController::class, 'listDocuments'])->name('client.listDocuments');
 Route::get('all-dcouments', [App\Http\Controllers\Client\DocumentController::class, 'allDocuments'])->name('allDocuments');
 Route::get('download-doc/{id}', [App\Http\Controllers\Client\DocumentController::class, 'downloadDoc'])->name('downloadDoc');
- 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Appointment;
 
+use App\Models\ConsentForm;
+use App\Models\UserConsentForm;
 use Exception;
 use Carbon\Carbon;
 use App\Models\User;
@@ -362,8 +364,9 @@ class AppointmentController extends Controller
             $appointment_date_time = Carbon::parse($appointment_info->start)->shiftTimezone('UTC')->setTimezone($timezone_info->tz_identifier)->toDateTimeString();
             $formatted_date_time = Carbon::parse($appointment_date_time)->format('m/d/Y H:i a') . " " . $timezone_info->tz_abbreviation;
             $medical_history_type = MedicalHistoryType::where('clinic_id', Auth::user()->clinic_id)->where('status', 1)->get();
+            $consent_history_user = ConsentForm::where('clinic_id', Auth::id())->get();
 
-            return view('appointments.view_appointment', compact('appointment_info', 'patient_info', 'doctor_info', 'formatted_date_time', 'medical_history_type'));
+            return view('appointments.view_appointment', compact('appointment_info', 'patient_info', 'doctor_info', 'formatted_date_time', 'medical_history_type','consent_history_user'));
         } catch (Exception $e) {
             Log::info("view appointment exception " . $e->getMessage());
             return redirect()->back()->with('msg-error', 'Something wrong.');
@@ -443,6 +446,81 @@ class AppointmentController extends Controller
             return response()->json(['error' => "Failed to update appointment note. Try again."]);
         }
     }
+
+    public function update_consent_form(Request $request)
+    {
+        try {
+
+            $validator = Validator::make($request->all(), [
+                'title' => 'required',
+                'image' => 'required|mimes:jpg,jpeg,png,pdf|max:2048',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['error' => "Please Check The Required Field."]);
+            }
+            $title = $request->title;
+
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $fileName = md5(uniqid(rand(), true)).'.'.strtolower(pathinfo($file->getClientOriginalName(),PATHINFO_EXTENSION)) ;
+                $destinationPath = 'uploads/consent_image/' ;
+                $file->move($destinationPath,$fileName);
+                $filePath = $destinationPath.$fileName;
+            }
+
+            $consent = new ConsentForm();
+            $consent->title = $title;
+            $consent->file_path = $filePath;
+            $consent->clinic_id = Auth::id();
+            $consent->push();
+
+            $message = "Appointment Note Updated Successfully.";
+
+            return response()->json(['success' => $message, 'id'=>$consent->id ,'this_consent' => '<div class="d-block text-left m-t-20"><div class="btn btn-outline-primary d-block text-left txt-dark selected">'.$title.'</div></div>']);
+        } catch (Exception $e) {
+            Log::info("update appointment note exception " . $e->getMessage());
+            return response()->json(['error' => "Failed to update appointment note. Try again."]);
+        }
+    }
+
+
+    public function update_user_consent_form(Request $request)
+    {
+        try {
+
+            $validator = Validator::make($request->all(), [
+                'consent_form_ids' => 'required',
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['error' => "Please Check The Required Field."]);
+            }
+            $consent_form_ids = $request->consent_form_ids;
+
+            $consent_form_ids = explode(",", $consent_form_ids);
+
+
+            UserConsentForm::where('user_id',$request->patient_id)->delete();
+
+            foreach ($consent_form_ids as $id=>$consent_form_id) {
+                $UserConsentForm = new UserConsentForm;
+                $UserConsentForm->form_id = $consent_form_id;
+                $UserConsentForm->user_id = $request->patient_id;
+                $UserConsentForm->push();
+            }
+
+
+            $message = "Appointment Note Updated Successfully.";
+
+            return response()->json(['success' => $message]);
+        } catch (Exception $e) {
+            Log::info("update appointment note exception " . $e->getMessage());
+            return response()->json(['error' => "Failed to update appointment note. Try again."]);
+        }
+    }
+
+
+
 
     public function load_appointment_notes(Request $request)
     {
