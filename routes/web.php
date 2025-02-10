@@ -31,9 +31,12 @@ Route::get('/view-appointment/{id}', [App\Http\Controllers\Appointment\Appointme
 Route::post('/save-appointment-note', [App\Http\Controllers\Appointment\AppointmentController::class, 'save_appointment_note']);
 Route::post('/delete-appointment-note', [App\Http\Controllers\Appointment\AppointmentController::class, 'delete_appointment_note']);
 Route::post('/update-appointment-note', [App\Http\Controllers\Appointment\AppointmentController::class, 'update_appointment_note']);
-Route::post('/update-consent-form', [App\Http\Controllers\Appointment\AppointmentController::class, 'update_consent_form']);
-Route::post('/update-user-consent-form', [App\Http\Controllers\Appointment\AppointmentController::class, 'update_user_consent_form']);
 Route::get('/load-appointment-notes', [App\Http\Controllers\Appointment\AppointmentController::class, 'load_appointment_notes']);
+
+Route::post('/update-consent-form', [App\Http\Controllers\Appointment\ConsentController::class, 'update_consent_form']);
+Route::post('/update-user-consent-form', [App\Http\Controllers\Appointment\ConsentController::class, 'update_user_consent_form']);
+
+
 /* --- appointment route end --- */
 
 /* --- product route start --- */

@@ -3,58 +3,27 @@
         <div class="row">
 
             <div class="col-xl-9 col-md-9 col-sm-12 mb-20">
-                <div class="card card-round p-3">
-                    <div class="blog-box blog-list row">
-                        <div class="col-sm-3"><img class="img-fluid sm-100-w" src="../assets/images/faq/1.jpg"
-                                alt=""></div>
-                        <div class="col-sm-9">
-                            <div class="blog-details">
-                                <div class="blog-date"><span>05</span> January 2024</div>
-                                <h4>Form: Stem Cell Intake </h4>
-                                <div class="blog-bottom-content">
-                                    <ul class="blog-social">
-                                        <li>Status:</li>
-                                        <li>Signed</li>
-                                    </ul>
+                <div class="card card-round p-3 selected-consent-list">
+
+                    @foreach($selected_consent as $item)
+                        <div class="blog-box blog-list row">
+                            <div class="col-sm-3">
+                                <img class="img-fluid sm-100-w" src="{{ asset($item->consent_from->file_path) }}" alt="">
+                            </div>
+                            <div class="col-sm-9">
+                                <div class="blog-details">
+                                    <div class="blog-date"><span>{{ Date('d',strtotime($item->consent_from->created_at)) }}</span> {{ Date('F Y',strtotime($item->consent_from->created_at)) }} </div>
+                                    <h4>{{ $item->consent_from->title }} </h4>
+                                    <div class="blog-bottom-content">
+                                        <ul class="blog-social">
+                                            <li>Status:</li>
+                                            <li>Signed</li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="blog-box blog-list row">
-                        <div class="col-sm-3"><img class="img-fluid sm-100-w" src="../assets/images/faq/1.jpg"
-                                alt=""></div>
-                        <div class="col-sm-9">
-                            <div class="blog-details">
-                                <div class="blog-date"><span>05</span> January 2024</div>
-                                <h4>Form: Stem Cell Intake </h4>
-                                <div class="blog-bottom-content">
-                                    <ul class="blog-social">
-                                        <li>Status:</li>
-                                        <li>Signed</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="blog-box blog-list row">
-                        <div class="col-sm-3"><img class="img-fluid sm-100-w" src="../assets/images/faq/1.jpg"
-                                alt=""></div>
-                        <div class="col-sm-9">
-                            <div class="blog-details">
-                                <div class="blog-date"><span>05</span> January 2024</div>
-                                <h4>Form: Stem Cell Intake </h4>
-                                <div class="blog-bottom-content">
-                                    <ul class="blog-social">
-                                        <li>Status:</li>
-                                        <li>Signed</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
+                    @endforeach
 
                 </div>
 
@@ -81,7 +50,7 @@
                         @foreach($consent_history_user as $consent_history)
                             @php $consent_form_ids[] = isset($consent_history->user_consent_form->form_id)?$consent_history->user_consent_form->form_id:''  @endphp
                             <div class="d-block text-left m-t-20">
-                                <div class="btn btn-outline-primary d-block text-left txt-dark {{ isset($consent_history->user_consent_form->form_id)?'selected':'' }}">
+                                <div data-consent_id="{{ $consent_history->id }}" class="consent-title btn btn-outline-primary d-block text-left txt-dark {{ isset($consent_history->user_consent_form->form_id)?'selected':'' }}">
                                     {{ $consent_history->title }}
                                 </div>
                             </div>
@@ -96,7 +65,7 @@
 
                     <div class="d-flex m-t-30 justify-content-end">
                         <input type="hidden" id="consent_form_ids" value="{{ $consent_form_ids }}">
-                        <input type="hidden" id="patient_id" value="{{ $patient_info->patient_id }}">
+                        <input type="hidden" id="patient_id" value="{{ $patient_info->id }}">
                         <a class="btn btn-primary" onclick="updateuserConsentForm()">Add</a>
                     </div>
                 </div>

@@ -49564,7 +49564,7 @@ html[dir=rtl] body.dark-only .page-wrapper .page-body-wrapper .page-body .card:n
 }
 
 .consent-all-list .selected {
-    background-color: var(--theme-deafult) !important;
-    border-color: var(--theme-deafult) !important;
+    background-color: #0000ff !important;
+    border-color: #0000ff !important;
     color: #fff !important;
 }
