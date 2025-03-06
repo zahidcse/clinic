@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Canvas Drag & Save</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .drag-item { cursor: pointer; padding: 10px; border: 1px solid #333; display: inline-block; margin: 5px; }
+        .canvas-container { margin-top: 10px; position: relative; display: inline-block; border: 1px solid black; }
+        canvas { border: 1px solid black; }
+        .canvas-container button { margin: 5px; display: block; }
+    </style>
+</head>
+<body>
+
+<h3>Draggable Elements:</h3>
+<div class="drag-item" data-type="signature">Signature</div>
+<div class="drag-item" data-type="date">Date</div>
+<div class="drag-item" data-type="email">Email</div>
+
+<h3>Canvases:</h3>
+<div id="canvasContainer"></div>
+<button onclick="addNewCanvas()">Add New Canvas</button>
+
+<!-- Modal -->
+<div id="objectModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: white; padding: 20px; border: 1px solid black; box-shadow: 0px 0px 10px rgba(0,0,0,0.5);">
+    <h3>Edit Object</h3>
+    <label>Text:</label>
+    <input type="text" id="modalText"><br>
+
+    <label>Border Color:</label>
+    <input type="color" id="modalBorderColor"><br>
+
+    <label>Upload Signature Image:</label>
+    <input type="file" id="modalSignatureImage" accept="image/*"><br>
+
+    <label>Or Draw Signature:</label>
+    <canvas id="signatureCanvas" width="300" height="100"></canvas>
+    <button onclick="clearSignaturePad()">Clear</button>
+    <br><br>
+
+    <button onclick="saveObjectChanges()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+</div>
+
+<script>
+    let canvases = {}; // Store multiple canvases
+    let activeCanvasId = null; // Track currently selected canvas
+    let draggedElement = null;
+    let selectedObjectIndex = null;
+    let signatureCanvas = new fabric.Canvas('signatureCanvas', { isDrawingMode: true });
+    signatureCanvas.freeDrawingBrush.width = 2;
+    signatureCanvas.freeDrawingBrush.color = "black";
+
+    document.querySelectorAll(".drag-item").forEach(item => {
+        item.addEventListener("mousedown", function () {
+            draggedElement = this;
+        });
+    });
+
+    function addNewCanvas() {
+        const canvasId = `canvas-${Date.now()}`;
+        const container = document.getElementById("canvasContainer");
+
+        const canvasWrapper = document.createElement("div");
+        canvasWrapper.classList.add("canvas-container");
+        canvasWrapper.innerHTML = `
+            <canvas id="${canvasId}" width="800" height="500"></canvas>
+            <button onclick="saveCanvasAsImage('${canvasId}')">Save Image</button>
+        `;
+
+        container.appendChild(canvasWrapper);
+
+        canvases[canvasId] = {
+            fabricCanvas: new fabric.Canvas(canvasId),
+            objects: []
+        };
+
+        const canvasElement = document.getElementById(canvasId);
+        canvasElement.addEventListener("dragover", (event) => event.preventDefault());
+        canvasElement.addEventListener("drop", (event) => handleDrop(event, canvasId));
+        canvasElement.addEventListener("click", (event) => handleCanvasClick(event, canvasId));
+    }
+
+    function handleDrop(event, canvasId) {
+        event.preventDefault();
+        if (!draggedElement) return;
+
+        const rect = event.target.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const type = draggedElement.getAttribute("data-type");
+        const obj = {
+            type: type,
+            x: x - 75,
+            y: y - 35,
+            text: type.charAt(0).toUpperCase() + type.slice(1),
+            width: 150,
+            height: 50,
+            color: "black"
+        };
+
+        canvases[canvasId].objects.push(obj);
+        drawCanvas(canvasId);
+        draggedElement = null;
+    }
+
+    function drawCanvas(canvasId) {
+        const canvas = canvases[canvasId].fabricCanvas;
+        canvas.clear();
+
+        canvases[canvasId].objects.forEach(obj => {
+            let rect = new fabric.Rect({
+                left: obj.x, top: obj.y, width: obj.width, height: obj.height,
+                fill: 'transparent', stroke: obj.borderColor || "black", strokeWidth: 2
+            });
+
+            let text = new fabric.Text(obj.text, {
+                left: obj.x + obj.width / 4, top: obj.y + obj.height / 4,
+                fontSize: 16, fill: "black"
+            });
+
+            canvas.add(rect);
+            canvas.add(text);
+        });
+    }
+
+    function handleCanvasClick(event, canvasId) {
+        const rect = event.target.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+
+        canvases[canvasId].objects.forEach((obj, index) => {
+            if (clickX >= obj.x && clickX <= obj.x + obj.width &&
+                clickY >= obj.y && clickY <= obj.y + obj.height) {
+                activeCanvasId = canvasId;
+                selectedObjectIndex = index;
+                openModal();
+            }
+        });
+    }
+
+    function openModal() {
+        const obj = canvases[activeCanvasId].objects[selectedObjectIndex];
+        document.getElementById("modalText").value = obj.text;
+        document.getElementById("modalBorderColor").value = obj.borderColor || "#000000";
+        document.getElementById("objectModal").style.display = "block";
+    }
+
+    function saveObjectChanges() {
+        if (selectedObjectIndex !== null && activeCanvasId) {
+            let obj = canvases[activeCanvasId].objects[selectedObjectIndex];
+            obj.text = document.getElementById("modalText").value;
+            obj.borderColor = document.getElementById("modalBorderColor").value;
+
+            const fileInput = document.getElementById("modalSignatureImage");
+            if (obj.type === "signature" && fileInput.files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    obj.imageSrc = event.target.result;
+                    drawCanvas(activeCanvasId);
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+            } else if (obj.type === "signature") {
+                obj.imageSrc = null;
+                obj.canvasData = signatureCanvas.toDataURL();
+            }
+
+            drawCanvas(activeCanvasId);
+            closeModal();
+        }
+    }
+
+    function closeModal() {
+        document.getElementById("objectModal").style.display = "none";
+        selectedObjectIndex = null;
+    }
+
+    function saveCanvasAsImage(canvasId) {
+        const canvas = canvases[canvasId].fabricCanvas.toCanvasElement();
+        const imageUrl = canvas.toDataURL("image/png");
+
+        const a = document.createElement("a");
+        a.href = imageUrl;
+        a.download = `${canvasId}.png`;
+        a.click();
+    }
+</script>
+
+</body>
+</html>

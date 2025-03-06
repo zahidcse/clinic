@@ -1,29 +1,279 @@
-<button id="captureBtn">Capture Screenshot</button>
-
-<div id="captureArea">
-  <h1>This is the area to capture</h1>
-  <p>Some more content...</p>
-</div>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
-
-<script>
-  $(document).ready(function() {
-    $('#captureBtn').click(function() {
-      html2canvas(document.querySelector("#captureArea"), {
-        onrendered: function(canvas) {
-          // Append the screenshot as an image
-          document.body.appendChild(canvas);
-          
-          // Or you can download the screenshot
-          var img = canvas.toDataURL("image/png");
-          var link = document.createElement('a');
-          link.href = img;
-          link.download = 'screenshot.png';
-          link.click();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webpage Screenshot Capture</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
         }
-      });
-    });
-  });
-</script>
+        canvas {
+            border: 1px solid #ccc;
+            margin-top: 10px;
+        }
+        .toolbar {
+            margin-bottom: 10px;
+        }
+        #floating-button {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: #333;
+            color: white;
+            font-size: 24px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 9999;
+        }
+        #floating-button:hover {
+            background-color: #444;
+        }
+        #screenshot-preview {
+            display: none;
+            position: fixed;
+            top: 50px;
+            left: 50px;
+            z-index: 9999;
+            width: 80%;
+            height: 80%;
+        }
+        #screenshot-preview input[type="text"] {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <script>
+        // Dynamically create and insert HTML elements
+        window.onload = function() {
+            // Create floating button
+            const floatingButton = document.createElement("button");
+            floatingButton.id = "floating-button";
+            floatingButton.innerHTML = "📷";
+            document.body.appendChild(floatingButton);
+
+            // Create screenshot preview container
+            const screenshotPreview = document.createElement("div");
+            screenshotPreview.id = "screenshot-preview";
+            document.body.appendChild(screenshotPreview);
+
+            // Create toolbar inside the screenshot preview
+            const toolbar = document.createElement("div");
+            toolbar.className = "toolbar";
+            screenshotPreview.appendChild(toolbar);
+
+            const freeDrawButton = document.createElement("button");
+            freeDrawButton.innerHTML = "Free Draw";
+            freeDrawButton.onclick = toggleDrawingMode;
+            toolbar.appendChild(freeDrawButton);
+
+            const writeTextButton = document.createElement("button");
+            writeTextButton.innerHTML = "Write Text";
+            writeTextButton.onclick = enableTextMode;
+            toolbar.appendChild(writeTextButton);
+
+            const drawCircleButton = document.createElement("button");
+            drawCircleButton.innerHTML = "Draw Circle";
+            drawCircleButton.onclick = enableCircleMode;
+            toolbar.appendChild(drawCircleButton);
+
+            const drawLineButton = document.createElement("button");
+            drawLineButton.innerHTML = "Draw Line";
+            drawLineButton.onclick = enableLineMode;
+            toolbar.appendChild(drawLineButton);
+
+            const undoButton = document.createElement("button");
+            undoButton.innerHTML = "Undo";
+            undoButton.onclick = undo;
+            toolbar.appendChild(undoButton);
+
+            const deleteButton = document.createElement("button");
+            deleteButton.innerHTML = "Delete";
+            deleteButton.onclick = deleteSelected;
+            toolbar.appendChild(deleteButton);
+
+            const saveButton = document.createElement("button");
+            saveButton.id = "save";
+            saveButton.innerHTML = "Save Image";
+            toolbar.appendChild(saveButton);
+
+            const colorLabel = document.createElement("label");
+            colorLabel.innerHTML = "Select Color: ";
+            toolbar.appendChild(colorLabel);
+
+            const colorPicker = document.createElement("input");
+            colorPicker.type = "color";
+            colorPicker.id = "colorPicker";
+            colorPicker.value = "#ff0000";
+            toolbar.appendChild(colorPicker);
+
+            // Create caption input and save button
+            const captionInput = document.createElement("input");
+            captionInput.type = "text";
+            captionInput.id = "caption";
+            captionInput.placeholder = "Enter caption";
+            screenshotPreview.appendChild(captionInput);
+
+            const saveCaptionButton = document.createElement("button");
+            saveCaptionButton.id = "save-btn";
+            saveCaptionButton.innerHTML = "Save";
+            screenshotPreview.appendChild(saveCaptionButton);
+
+            // Create canvas
+            const canvasElement = document.createElement("canvas");
+            canvasElement.id = "canvas";
+            screenshotPreview.appendChild(canvasElement);
+
+            // Set up Fabric.js canvas
+            const canvas = new fabric.Canvas('canvas', { selection: true });
+            canvas.setWidth(window.innerWidth - 40);
+            canvas.setHeight(window.innerHeight - 150);
+            canvas.isDrawingMode = false;
+
+            let drawingMode = null;
+            let startX, startY, tempObject;
+            let history = [];
+            let currentColor = "#ff0000"; // Default color
+
+            // Event listeners and functionality
+            colorPicker.addEventListener("input", function(event) {
+                currentColor = event.target.value;
+                const activeObject = canvas.getActiveObject();
+                if (activeObject) {
+                    if (activeObject.set) {
+                        if (activeObject.type === 'circle') {
+                            activeObject.set({ stroke: currentColor });
+                        } else {
+                            activeObject.set({ fill: currentColor, stroke: currentColor });
+                        }
+                        canvas.renderAll();
+                    }
+                }
+            });
+
+            function toggleDrawingMode() {
+                canvas.isDrawingMode = !canvas.isDrawingMode;
+                drawingMode = null;
+            }
+
+            function enableTextMode() {
+                drawingMode = "text";
+                canvas.isDrawingMode = false;
+            }
+
+            function enableCircleMode() {
+                drawingMode = "circle";
+                canvas.isDrawingMode = false;
+            }
+
+            function enableLineMode() {
+                drawingMode = "line";
+                canvas.isDrawingMode = false;
+            }
+
+            function undo() {
+                if (history.length > 0) {
+                    canvas.loadFromJSON(history.pop(), canvas.renderAll.bind(canvas));
+                }
+            }
+
+            function deleteSelected() {
+                const activeObject = canvas.getActiveObject();
+                if (activeObject) {
+                    canvas.remove(activeObject);
+                    saveState();
+                }
+            }
+
+            function saveState() {
+                history.push(JSON.stringify(canvas));
+            }
+
+            // Mouse Event Listeners
+            canvas.on('mouse:down', function (event) {
+                if (event.target) return;
+                startX = event.pointer.x;
+                startY = event.pointer.y;
+
+                if (drawingMode === "text") {
+                    const text = new fabric.Textbox("Write here", {
+                        left: startX,
+                        top: startY,
+                        fill: currentColor,
+                        fontSize: 20,
+                        editable: true
+                    });
+                    canvas.add(text);
+                    saveState();
+                    drawingMode = null;
+                } 
+                else if (drawingMode === "circle") {
+                    tempObject = new fabric.Circle({
+                        left: startX,
+                        top: startY,
+                        radius: 1,
+                        stroke: currentColor,
+                        fill: 'transparent',
+                        strokeWidth: 2,
+                        selectable: true
+                    });
+                    canvas.add(tempObject);
+                } 
+                else if (drawingMode === "line") {
+                    tempObject = new fabric.Line([startX, startY, startX, startY], {
+                        stroke: currentColor,
+                        strokeWidth: 2,
+                        selectable: true
+                    });
+                    canvas.add(tempObject);
+                }
+            });
+
+            canvas.on('mouse:move', function (event) {
+                if (!tempObject) return;
+                const { x, y } = event.pointer;
+
+                if (drawingMode === "circle") {
+                    const radius = Math.sqrt(Math.pow(x - startX, 2) + Math.pow(y - startY, 2));
+                    tempObject.set({ radius });
+                } 
+                else if (drawingMode === "line") {
+                    tempObject.set({ x2: x, y2: y });
+                }
+                canvas.renderAll();
+            });
+
+            canvas.on('mouse:up', function () {
+                if (tempObject) {
+                    saveState();
+                    tempObject = null;
+                }
+            });
+
+            // Capture Button functionality
+            floatingButton.addEventListener("click", function() {
+                // Capture the screenshot
+                html2canvas(document.body).then(function (canvasElement) {
+                    const image = new fabric.Image(canvasElement, {
+                        left: 0,
+                        top: 0,
+                        selectable: false,
+                        evented: false,
+                    });
+                    canvas.setBackgroundImage(image, canvas.renderAll.bind(canvas));
+                    screenshotPreview.style.display = "block"; // Show the canvas and toolbar
+                }).catch(function (error) {
+                    console.error('Error capturing screenshot:', error);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

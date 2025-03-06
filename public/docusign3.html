@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Drag & Save</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .drag-item { cursor: pointer; padding: 10px; border: 1px solid #333; display: inline-block; margin: 5px; }
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+
+<!-- Modal -->
+<!--div id="objectModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: white; padding: 20px; border: 1px solid black; box-shadow: 0px 0px 10px rgba(0,0,0,0.5);">
+    <h3>Edit Object</h3>
+    <label>Text:</label>
+    <input type="text" id="modalText">
+    <br>
+
+    <label>Border Color:</label>
+    <input type="color" id="modalBorderColor">
+    <br>
+
+    <label>Upload Signature Image:</label>
+    <input type="file" id="modalSignatureImage" accept="image/*">
+    <br><br>
+
+    <button onclick="saveObjectChanges()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+</div -->
+
+<!-- Modal -->
+<div id="objectModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: white; padding: 20px; border: 1px solid black; box-shadow: 0px 0px 10px rgba(0,0,0,0.5);">
+    <h3>Edit Object</h3>
+    <label>Text:</label>
+    <input type="text" id="modalText">
+    <br>
+
+    <label>Border Color:</label>
+    <input type="color" id="modalBorderColor">
+    <br>
+
+    <label>Upload Signature Image:</label>
+    <input type="file" id="modalSignatureImage" accept="image/*">
+    <br>
+
+    <label>Or Draw Signature:</label>
+    <canvas id="signatureCanvas" class="signature-pad" width="300" height="100"></canvas>
+    <button onclick="clearSignaturePad()">Clear</button>
+    <br><br>
+
+    <button onclick="saveObjectChanges()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+</div>
+
+<h3>Draggable Elements:</h3>
+<div class="drag-item" data-type="signature">Signature</div>
+<div class="drag-item" data-type="date">Date</div>
+<div class="drag-item" data-type="email">Email</div>
+
+<h3>Canvas:</h3>
+<canvas id="canvasElement" width="800" height="500"></canvas>
+
+<br><br>
+<button onclick="saveObjectsToDatabase()">Save to Database</button>
+<button onclick="loadObjectsFromDatabase()">Load from Database</button>
+<button onclick="saveCanvasAsImage()">Seed Demo Data</button>
+
+<script>
+    let canvasElement = document.getElementById("canvasElement");
+    let ctx = canvasElement.getContext("2d");
+    let objectsOnCanvas = [];
+    let draggedElement = null;
+    let backgroundImage = new Image(); // Background image object
+
+   // let signaturePad = new fabric.Canvas("signaturePad");
+
+   const signatureCanvas = new fabric.Canvas('signatureCanvas', {
+            isDrawingMode: true
+        });
+    signatureCanvas.freeDrawingBrush.width = 2;
+    signatureCanvas.freeDrawingBrush.color = "black";
+
+    // Load the background image when the page is loaded
+    window.onload = function () {
+        loadBackgroundImage();  // Load background image first
+        loadObjectsFromDatabase();  // Load the objects after background is ready
+    };
+
+    function loadBackgroundImage() {
+        backgroundImage.src = 'http://localhost/clinic/public/Blogs_image.jpg';  // Example background image URL
+
+        backgroundImage.onload = function() {
+            drawCanvas();  // Draw the canvas once the background image is loaded
+        };
+    }
+
+    /*document.querySelectorAll(".drag-item").forEach(item => {
+        item.addEventListener("mousedown", function () {
+            draggedElement = this;
+        });
+    });
+
+    canvasElement.addEventListener("dragover", function (event) {
+        event.preventDefault();
+    });
+
+    canvasElement.addEventListener("drop", function (event) {
+        event.preventDefault();
+        if (!draggedElement) return;
+
+        const rect = canvasElement.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const type = draggedElement.getAttribute("data-type");
+        const newObject = {
+            type: type,
+            x: x - 75,
+            y: y - 35,
+            text: type.charAt(0).toUpperCase() + type.slice(1),
+            width: 150,
+            height: 50,
+            color: "black"
+        };
+
+        objectsOnCanvas.push(newObject);
+        drawCanvas();
+        draggedElement = null;
+    }); */
+
+    function drawCanvas() {
+        // Clear previous canvas content
+        ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+        // Draw background image (if loaded)
+        if (backgroundImage.complete) {
+            ctx.drawImage(backgroundImage, 0, 0, canvasElement.width, canvasElement.height);
+        }
+
+        // Draw all objects on the canvas
+        objectsOnCanvas.forEach(obj => {
+            if (obj.type === "signature" && obj.imageSrc) {
+                // Draw the uploaded signature image
+                const img = new Image();
+                img.src = obj.imageSrc;
+                img.onload = function() {
+                    ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+                };
+            }if (obj.type === "signature" && obj.canvasData) {
+                let img = new Image();
+                img.src = obj.canvasData;
+                img.onload = function() {
+                    ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+                };
+            } else {
+                // Draw rectangle with border
+                ctx.strokeStyle = obj.borderColor || "black";
+                ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+
+                // Draw text
+                ctx.fillStyle = "black";
+                ctx.font = "16px Arial";
+                ctx.textAlign = "center";
+                ctx.fillText(obj.text, obj.x + obj.width / 2, obj.y + obj.height / 2);
+            }
+        });
+    }
+
+    function closeModal() {
+        document.getElementById("objectModal").style.display = "none";
+        selectedObjectIndex = null;
+    }
+
+    
+
+    async function loadObjectsFromDatabase() {
+        try {
+            // Example demo data for objects
+            let data = [
+                {
+                    type: 'signature',
+                    x: 100,
+                    y: 150,
+                    text: 'Signature',
+                    width: 150,
+                    height: 50,
+                    color: 'blue'
+                },
+                {
+                    type: 'date',
+                    x: 300,
+                    y: 250,
+                    text: 'Date',
+                    width: 150,
+                    height: 50,
+                    color: 'green'
+                },
+                {
+                    type: 'email',
+                    x: 500,
+                    y: 350,
+                    text: 'Email',
+                    width: 150,
+                    height: 50,
+                    color: 'red'
+                }
+            ];
+
+            objectsOnCanvas = data;
+            drawCanvas();
+        } catch (error) {
+            console.error("Error loading objects:", error);
+        }
+    }
+
+    canvasElement.addEventListener("click", function(event) {
+        const rect = canvasElement.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+
+        objectsOnCanvas.forEach((obj, index) => {
+            if (
+                clickX >= obj.x && clickX <= obj.x + obj.width &&
+                clickY >= obj.y && clickY <= obj.y + obj.height
+            ) {
+                openModal(index);
+            }
+        });
+    });
+
+    let selectedObjectIndex = null;
+
+    function openModal(index) {
+        selectedObjectIndex = index;
+        const obj = objectsOnCanvas[index];
+
+        document.getElementById("modalText").value = obj.text;
+        document.getElementById("modalBorderColor").value = obj.borderColor || "#000000"; // Default black
+
+        if (obj.type === "signature") {
+            document.getElementById("modalSignatureImage").style.display = "block";
+        } else {
+            document.getElementById("modalSignatureImage").style.display = "none";
+        }
+
+        document.getElementById("objectModal").style.display = "block";
+    }
+
+    function saveObjectChanges() {
+        if (selectedObjectIndex !== null) {
+            let obj = objectsOnCanvas[selectedObjectIndex];
+
+            obj.text = document.getElementById("modalText").value;
+            obj.borderColor = document.getElementById("modalBorderColor").value;
+
+            // Handle signature image upload
+            const fileInput = document.getElementById("modalSignatureImage");
+            if (obj.type === "signature" && fileInput.files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    obj.imageSrc = event.target.result; // Save the image data
+                    drawCanvas();
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+                
+                
+            }else if(obj.type === "signature" && fileInput.files.length <= 0){
+                obj.imageSrc = null; // Clear any previous image
+                obj.canvasData = signatureCanvas.toDataURL(); // Save the drawn signature
+                drawCanvas();
+            }else {
+                drawCanvas();
+            }
+
+            closeModal();
+        }
+    }
+
+    function saveCanvasAsImage() {
+        const canvas = canvasElement;
+        const imageUrl = canvas.toDataURL("image/png"); // Generate the image URL
+
+        // Create an anchor element to trigger the download
+        const a = document.createElement("a");
+        a.href = imageUrl;
+        a.download = "canvas-image.png"; // Specify the default download file name
+        document.body.appendChild(a);
+        a.click(); // Trigger the download
+        document.body.removeChild(a); // Clean up by removing the anchor element
+    }
+
+
+    
+</script>
+
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshot App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #floating-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: red;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        #screenshot-preview {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <button id="floating-button">📷</button>
+    <div id="screenshot-preview">
+        <canvas id="canvas"></canvas>
+        <input type="text" id="caption" placeholder="Enter caption">
+        <button id="save-btn">Save</button>
+    </div>
+    
+    <script>
+        document.getElementById('floating-button').addEventListener('click', () => {
+            html2canvas(document.body).then(canvas => {
+                document.getElementById('canvas').replaceWith(canvas);
+                canvas.id = "canvas";
+                document.getElementById('screenshot-preview').style.display = 'block';
+            });
+        });
+
+        document.getElementById('save-btn').addEventListener('click', () => {
+            let canvas = document.getElementById('canvas');
+            let caption = document.getElementById('caption').value;
+            let imageData = canvas.toDataURL("image/png");
+            
+            fetch('/save-screenshot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData, caption: caption })
+            }).then(response => response.json()).then(data => {
+                alert('Screenshot saved!');
+                document.getElementById('screenshot-preview').style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Drag & Save</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="http://localhost/clinic/public/assets/css/vendors/bootstrap.css">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .drag-item { cursor: pointer; padding: 10px; border: 1px solid #333; display: inline-block; margin: 5px; }
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+
+<!-- Modal -->
+<!--div id="objectModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: white; padding: 20px; border: 1px solid black; box-shadow: 0px 0px 10px rgba(0,0,0,0.5);">
+    <h3>Edit Object</h3>
+    <label>Text:</label>
+    <input type="text" id="modalText">
+    <br>
+
+    <label>Border Color:</label>
+    <input type="color" id="modalBorderColor">
+    <br>
+
+    <label>Upload Signature Image:</label>
+    <input type="file" id="modalSignatureImage" accept="image/*">
+    <br><br>
+
+    <button onclick="saveObjectChanges()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+</div -->
+
+<!-- Modal -->
+<div id="objectModal" style="display: none; position: fixed; top: 50%; width:40%;left: 30%; transform: translate(-30%, -30%);
+    background: white; padding: 20px; border: 1px solid black; box-shadow: 0px 0px 10px rgba(0,0,0,0.5);">
+   <div id="modaltextContainer" class="pt-3 pb-3">
+    <input class="form-control" type="text" id="modalText">
+   
+
+ 
+    <!--input type="color" id="modalBorderColor" -->
+ 
+
+ 
+
+    
+    </div>
+    <div  id="modalsignatureContainer">
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button" role="tab" aria-controls="home" aria-selected="true">Upload Signature</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="false">Draw Signature</button>
+                </li>
+                
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content mt-3" id="myTabContent">
+                <div class="tab-pane fade show active pt-3 pb-5" id="home" role="tabpanel" aria-labelledby="home-tab">
+                    <input type="file" id="modalSignatureImage" accept="image/*">
+                </div>
+                <div class="tab-pane fade pt-3 pb-3" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                    <canvas id="signatureCanvas" class="signature-pad" width="400" height="100"></canvas>
+                    <br/>
+                    <button class="btn btn-danger" onclick="clearSignaturePad()">Clear</button>
+                </div>
+            
+            </div>
+    </div>
+    <button class="btn btn-primary" onclick="saveObjectChanges()">Save</button>
+    <button class="btn btn-primary"  onclick="closeModal()">Cancel</button>
+</div>
+
+
+</div>
+
+<h3>Draggable Elements:</h3>
+<div class="drag-item" data-type="signature">Signature</div>
+<div class="drag-item" data-type="date">Date</div>
+<div class="drag-item" data-type="email">Email</div>
+
+<h3>Canvas:</h3>
+<canvas id="canvasElement" width="800" height="500"></canvas>
+<canvas id="canvasElement2" width="800" height="500"></canvas>
+
+<br><br>
+<button onclick="saveObjectsToDatabase()">Save to Database</button>
+<button onclick="loadObjectsFromDatabase()">Load from Database</button>
+<button onclick="saveCanvasAsImage()">Seed Demo Data</button>
+
+<script>
+    //let canvasElement = document.getElementById("canvasElement");
+    //let ctx = canvasElement.getContext("2d");
+
+    const canvases = {};
+    const canvasObjects = {};
+    let ctxx = {};
+    let objectsOnCanvas = {};
+    document.querySelectorAll("canvas").forEach(canvas => {
+        const id = canvas.id;
+        if(id!='signatureCanvas'){
+        canvases[id] = document.getElementById(id);
+        ctxx[id] = canvases[id].getContext("2d");
+        }
+        //objectsOnCanvas[id] = [];
+
+        
+    });
+    //let draggedElement = null;
+    let backgroundImage = new Image(); // Background image object
+
+   // let signaturePad = new fabric.Canvas("signaturePad");
+
+   const signatureCanvas = new fabric.Canvas('signatureCanvas', {
+            isDrawingMode: true
+        });
+    signatureCanvas.freeDrawingBrush.width = 2;
+    signatureCanvas.freeDrawingBrush.color = "black";
+
+    // Load the background image when the page is loaded
+    window.onload = function () {
+        loadBackgroundImage();  // Load background image first
+        loadObjectsFromDatabase();  // Load the objects after background is ready
+    };
+
+    function loadBackgroundImage() {
+        backgroundImage.src = 'http://localhost/clinic/public/Blogs_image.jpg';  // Example background image URL
+
+        backgroundImage.onload = function() {
+            drawCanvas();  // Draw the canvas once the background image is loaded
+        };
+    }
+
+    /*document.querySelectorAll(".drag-item").forEach(item => {
+        item.addEventListener("mousedown", function () {
+            draggedElement = this;
+        });
+    });
+
+    canvasElement.addEventListener("dragover", function (event) {
+        event.preventDefault();
+    });
+
+    canvasElement.addEventListener("drop", function (event) {
+        event.preventDefault();
+        if (!draggedElement) return;
+
+        const rect = canvasElement.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        const type = draggedElement.getAttribute("data-type");
+        const newObject = {
+            type: type,
+            x: x - 75,
+            y: y - 35,
+            text: type.charAt(0).toUpperCase() + type.slice(1),
+            width: 150,
+            height: 50,
+            color: "black"
+        };
+
+        objectsOnCanvas.push(newObject);
+        drawCanvas();
+        draggedElement = null;
+    }); */
+
+    function drawCanvas() {
+
+        for (let x in ctxx) {
+            
+            //console.log(x);
+       
+            // Clear previous canvas content
+            let ctx = ctxx[x];
+            let canvasElement = canvases[x];
+            ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            // Draw background image (if loaded)
+            if (backgroundImage.complete) {
+                ctx.drawImage(backgroundImage, 0, 0, canvasElement.width, canvasElement.height);
+            }
+
+            // Draw all objects on the canvas
+            objectsOnCanvas[x].forEach(obj => {
+                if (obj.type === "signature" && obj.imageSrc) {
+                    // Draw the uploaded signature image
+                    const img = new Image();
+                    img.src = obj.imageSrc;
+                    img.onload = function() {
+                        ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+                    };
+                }if (obj.type === "signature" && obj.canvasData) {
+                    let img = new Image();
+                    img.src = obj.canvasData;
+                    img.onload = function() {
+                        ctx.drawImage(img, obj.x, obj.y, obj.width, obj.height);
+                    };
+                } else {
+                    // Draw rectangle with border
+                    ctx.strokeStyle = obj.borderColor || "black";
+                    ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+
+                    // Draw text
+                    ctx.fillStyle = "black";
+                    ctx.font = "16px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText(obj.text, obj.x + obj.width / 2, obj.y + obj.height / 2);
+                }
+            });
+        }
+    }
+
+    function closeModal() {
+        document.getElementById("objectModal").style.display = "none";
+        selectedObjectIndex = null;
+    }
+
+    
+
+    async function loadObjectsFromDatabase() {
+        try {
+            // Example demo data for objects
+            let data = [
+                {
+                    type: 'signature',
+                    x: 100,
+                    y: 150,
+                    text: 'Signature',
+                    width: 150,
+                    height: 50,
+                    color: 'blue'
+                },
+                {
+                    type: 'date',
+                    x: 300,
+                    y: 250,
+                    text: 'Date',
+                    width: 150,
+                    height: 50,
+                    color: 'green'
+                },
+                {
+                    type: 'email',
+                    x: 500,
+                    y: 350,
+                    text: 'Email',
+                    width: 150,
+                    height: 50,
+                    color: 'red'
+                }
+            ];
+            
+
+            let data2 = [
+                {
+                    type: 'signature',
+                    x: 200,
+                    y: 250,
+                    text: 'Signature',
+                    width: 150,
+                    height: 50,
+                    color: 'blue'
+                },
+                {
+                    type: 'date',
+                    x: 300,
+                    y: 250,
+                    text: 'Date',
+                    width: 150,
+                    height: 50,
+                    color: 'green'
+                },
+                {
+                    type: 'email',
+                    x: 400,
+                    y: 350,
+                    text: 'Email',
+                    width: 150,
+                    height: 50,
+                    color: 'red'
+                }
+            ];
+
+            objectsOnCanvas['canvasElement'] = data;
+            objectsOnCanvas['canvasElement2'] = data2;
+            drawCanvas();
+        } catch (error) {
+            console.error("Error loading objects:", error);
+        }
+    }
+
+
+          for (let c in ctxx) {
+           
+            //let c = 'canvasElement';
+            canvases[c].addEventListener("click", function(event) {
+                const rect = canvases[c].getBoundingClientRect();
+                const clickX = event.clientX - rect.left;
+                const clickY = event.clientY - rect.top;
+                alert(clickX + clickY);
+                objectsOnCanvas[c].forEach((obj, index) => {
+                    //alert(obj.x);
+                    if (
+                        clickX >= obj.x && clickX <= obj.x + obj.width &&
+                        clickY >= obj.y && clickY <= obj.y + obj.height
+                    ) {
+                        alert(obj.x);
+                        openModal(c,index);
+                    }
+                });
+            });
+
+
+         }
+      
+   
+
+    
+
+    let selectedObjectIndex = null;
+    let selectedObjectCanvas = null;
+    function openModal(c,index) {
+        selectedObjectIndex = index;
+        selectedObjectCanvas = c;
+        const obj = objectsOnCanvas[c][index];
+
+        document.getElementById("modalText").value = obj.text;
+        //document.getElementById("modalBorderColor").value = obj.borderColor || "#000000"; // Default black
+
+        if (obj.type === "signature") {
+            document.getElementById("modalsignatureContainer").style.display = "block";
+            document.getElementById("modaltextContainer").style.display = "none";
+            
+        } else {
+            document.getElementById("modalsignatureContainer").style.display = "none";
+            document.getElementById("modaltextContainer").style.display = "block";
+        }
+
+        document.getElementById("objectModal").style.display = "block";
+    }
+
+    function saveObjectChanges() {
+        if (selectedObjectIndex !== null) {
+
+            
+
+            
+            let obj = objectsOnCanvas[selectedObjectCanvas][selectedObjectIndex];
+
+            obj.text = document.getElementById("modalText").value;
+            obj.borderColor = document.getElementById("modalBorderColor").value;
+
+            // Handle signature image upload
+            const fileInput = document.getElementById("modalSignatureImage");
+            if (obj.type === "signature" && fileInput.files.length > 0) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    obj.imageSrc = event.target.result; // Save the image data
+                    drawCanvas();
+                };
+                reader.readAsDataURL(fileInput.files[0]);
+                
+                
+            }else if(obj.type === "signature" && fileInput.files.length <= 0){
+                obj.imageSrc = null; // Clear any previous image
+                obj.canvasData = signatureCanvas.toDataURL(); // Save the drawn signature
+                drawCanvas();
+            }else {
+                drawCanvas();
+            }
+
+            closeModal();
+      
+        }
+    }
+
+    function saveCanvasAsImage() {
+        for (let c in ctxx) {
+            const canvas = canvases[c];
+            const imageUrl = canvas.toDataURL("image/png"); // Generate the image URL
+
+            // Create an anchor element to trigger the download
+            const a = document.createElement("a");
+            a.href = imageUrl;
+            a.download = "canvas-image.png"; // Specify the default download file name
+            document.body.appendChild(a);
+            a.click(); // Trigger the download
+            document.body.removeChild(a); // Clean up by removing the anchor element
+        }
+    }
+
+
+    
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
